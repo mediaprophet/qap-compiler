@@ -1,0 +1,73 @@
+name: "Compile Qualia Application Package (.qap) & Evidentiary Archive (.qar)"
+description: "Compiles a Qualia Application workspace (qap.q42.yaml + .vibe + .q42 + .10d) into a 64-byte page-aligned .qap (QAP\\0 v1) container, verifies host version pins and API surface contracts, and uploads the .qap artifact."
+author: "Timothy Charles Holborn"
+
+inputs:
+  workspace-dir:
+    description: "Path to the application workspace containing qap.q42.yaml"
+    required: false
+    default: "."
+  output-qap:
+    description: "Output path for the compiled .qap container"
+    required: false
+    default: "dist/package.qap"
+  principal-did:
+    description: "Natural-person principal DID used for activation verification (collect != activate)"
+    required: false
+    default: "did:q42:person:timothy-holborn"
+  compatibility-mode:
+    description: "Host environment compatibility verification mode (exact | minor-update)"
+    required: false
+    default: "minor-update"
+  upload-artifact:
+    description: "Whether to upload the generated .qap file as a GitHub Actions workflow artifact"
+    required: false
+    default: "true"
+  artifact-name:
+    description: "Artifact name for actions/upload-artifact"
+    required: false
+    default: "qualia-application-package-qap"
+
+outputs:
+  qap-path:
+    description: "Path to the generated .qap package"
+    value: ${{ inputs.output-qap }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Rust Toolchain (stable)
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build Standalone qapc Compiler
+      shell: bash
+      run: |
+        cargo build --release --manifest-path "${{ github.action_path }}/Cargo.toml" -p qapc-cli
+
+    - name: Verify Version Pinning, Minor-Update Tolerance & Capability API Surface Contracts
+      shell: bash
+      run: |
+        "${{ github.action_path }}/target/release/qapc" check-env "${{ inputs.workspace-dir }}" "${{ inputs.compatibility-mode }}"
+
+    - name: Compile Workspace to 64-Byte Page-Aligned .qap Package
+      shell: bash
+      run: |
+        "${{ github.action_path }}/target/release/qapc" build "${{ inputs.workspace-dir }}" -o "${{ inputs.output-qap }}"
+
+    - name: Zero-Copy Inspect & Verify .qap Container Integrity (CRC32C + Entry Digests)
+      shell: bash
+      run: |
+        "${{ github.action_path }}/target/release/qapc" inspect "${{ inputs.output-qap }}"
+
+    - name: Verify Natural-Person Activation Gate (collect != activate) & Live VibeScript Entrypoint
+      shell: bash
+      run: |
+        "${{ github.action_path }}/target/release/qapc" activate-eval "${{ inputs.workspace-dir }}" "${{ inputs.principal-did }}"
+
+    - name: Upload Compiled .qap Artifact
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-qap }}
+        if-no-files-found: error

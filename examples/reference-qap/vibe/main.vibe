@@ -1,0 +1,22 @@
+requires [
+  capability("capability.invoke"),
+  capability("Biophysical.estimate_rppg_hrv"),
+  capability("Pharmacokinetics.solve_rk4"),
+  capability("SanctuaryStaging.stage_import"),
+  capability("CoopLedger.evaluate_transition_readiness")
+];
+
+effect fn on_qap_activate() {
+  let staging = capability.invoke("SanctuaryStaging.stage_import", { source: "sanctuary://intake/uncategorized" });
+  let rppg = capability.invoke("Biophysical.estimate_rppg_hrv", { fps: 30, target_bpm: 68 });
+  let pk = capability.invoke("Pharmacokinetics.solve_rk4", { med: "prazosin_2mg" });
+  let ledger = capability.invoke("CoopLedger.evaluate_transition_readiness", { project: "proj-aether-commons" });
+  return {
+    qap_id: "reference-qap",
+    mode: "live_vibe_zero_compile",
+    staging: staging,
+    rppg: rppg,
+    pk: pk,
+    ledger: ledger
+  };
+}

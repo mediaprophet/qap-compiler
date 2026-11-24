@@ -1,0 +1,12 @@
+[package]
+name = "qap-compiler-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Standalone CI-Ready Workspace Scanner, VibeScript Validator/Evaluator, QECP Signer & .qap/.qar Compiler Engine"
+
+[dependencies]
+qap-format-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true

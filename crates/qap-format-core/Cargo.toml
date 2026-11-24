@@ -1,0 +1,11 @@
+[package]
+name = "qap-format-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Canonical .qap (QAP\\0 v1) Application Container, yaml-ld-q42 v2 Manifest Validator & .qar (QAR\\0 v1) Evidentiary Cold-Storage Archive Format"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

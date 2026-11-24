@@ -1,0 +1,31 @@
+%YAML 1.2
+---
+"@context":
+  q42: "https://qualia.io/ontology/q42#"
+  qap: "https://qualia.io/ontology/qap#"
+  values: "https://ns.webcivics.net/values/"
+  spc: "https://ns.webcivics.net/social-permissive-commons/"
+"@id": "urn:qualia:qap:reference-qap:0.0.41"
+"@type": "qap:ApplicationPackage"
+schema: "yaml-ld-q42/v2"
+qap_id: "reference-qap"
+title: "Reference Qualia Application Package (CI & GitHub Actions Verification Fixture)"
+version: "0.0.41"
+license: "CC-BY-NC-ND-4.0"
+author_did: "did:q42:person:timothy-holborn"
+qdp_context_domain: "webizen.org"
+entrypoint: "vibe/main.vibe"
+multi_scale_layers:
+  - L0Continuum
+  - L1RigidArticulatedPgaXpbd
+  - L2SoftBodyFluid
+  - L3MolecularChemical
+  - L4CellularBiological
+  - L5EcologicalGeomorphic
+  - L6QuantumPhysics
+required_capabilities:
+  - "capability.invoke"
+  - "Biophysical.estimate_rppg_hrv"
+  - "Pharmacokinetics.solve_rk4"
+  - "SanctuaryStaging.stage_import"
+  - "CoopLedger.evaluate_transition_readiness"

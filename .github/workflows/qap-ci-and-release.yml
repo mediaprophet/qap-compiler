@@ -1,0 +1,53 @@
+name: QAP Compiler CI & Package Generation
+
+on:
+  push:
+    branches: ["main", "0.0.41-*"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-and-generate-qap:
+    name: Build qapc & Generate .qap + .qar (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout qap-compiler
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Unit & Integration Tests (Format Core, Version Pinning, API Surface & VibeScript)
+        run: cargo test --no-fail-fast
+
+      - name: Build Release qapc Binary
+        run: cargo build --release -p qapc-cli
+
+      - name: Verify Host Compatibility Matrix (Exact Pin & Minor-Update Tolerance)
+        run: |
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap minor-update
+
+      - name: Generate .qap Application Package & .qar Evidentiary Archive
+        run: |
+          cargo run --release -p qapc-cli -- build-all -d dist
+          cargo run --release -p qapc-cli -- inspect dist/reference-qap.qap
+          cargo run --release -p qapc-cli -- activate-eval examples/reference-qap did:q42:person:timothy-holborn
+
+      - name: Upload Generated .qap & .qar Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: qap-packages-${{ matrix.os }}
+          path: |
+            dist/*.qap
+            dist/*.qar
+          if-no-files-found: error

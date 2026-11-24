@@ -1,0 +1,17 @@
+[package]
+name = "qapc-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "qapc — Canonical Qualia Application Package (.qap) & Evidentiary Cold-Storage Archive (.qar) Compiler CLI"
+
+[[bin]]
+name = "qapc"
+path = "src/main.rs"
+
+[dependencies]
+qap-format-core.workspace = true
+qap-compiler-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
