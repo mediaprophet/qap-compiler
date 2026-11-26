@@ -48,6 +48,12 @@ runs:
       shell: bash
       run: |
         "${{ github.action_path }}/target/release/qapc" check-env "${{ inputs.workspace-dir }}" "${{ inputs.compatibility-mode }}"
+        for p in host desktop subsystem mobile iot-headless iot-display; do
+          echo "::group::qapc check-env --profile $p"
+          "${{ github.action_path }}/target/release/qapc" check-env "${{ inputs.workspace-dir }}" "${{ inputs.compatibility-mode }}" --profile "$p"
+          echo "::endgroup::"
+        done
+
 
     - name: Compile Workspace to 64-Byte Page-Aligned .qap Package
       shell: bash

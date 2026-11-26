@@ -1,0 +1,27 @@
+requires [
+  capability("capability.invoke"),
+  capability("IoTInstrument.pair_with_steward_host"),
+  capability("IoTSignage.present_verified_hmc"),
+  capability("WgslForge.generate")
+];
+
+effect fn on_qap_activate() {
+  let pairing = capability.invoke("IoTInstrument.pair_with_steward_host", {
+    instrument_did: "did:q42:instrument:rpi5-shopfront-holo-signage",
+    steward_did: "did:qi:steward:desktop-principal"
+  });
+  let shader = capability.invoke("WgslForge.generate", {
+    surface: "shopfront-holograph"
+  });
+  let signage = capability.invoke("IoTSignage.present_verified_hmc", {
+    hmc_uri: "sanctuary://signage/shopfront-playlist.hmc",
+    qecp_sig: "qecp-sig-shopfront-activate"
+  });
+  return {
+    qap_id: "iot-shop-signage-display",
+    mode: "qecp_collect_neq_activate",
+    pairing: pairing,
+    shader: shader,
+    signage: signage
+  };
+}

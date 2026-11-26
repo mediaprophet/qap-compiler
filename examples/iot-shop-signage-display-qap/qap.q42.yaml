@@ -1,0 +1,34 @@
+%YAML 1.2
+---
+"@context":
+  q42: "https://qualia.io/ontology/q42#"
+  qap: "https://qualia.io/ontology/qap#"
+  values: "https://ns.webcivics.net/values/"
+  spc: "https://ns.webcivics.net/social-permissive-commons/"
+"@id": "urn:qualia:qap:iot-shop-signage-display:0.0.41"
+"@type": "qap:ApplicationPackage"
+schema: "yaml-ld-q42/v2"
+qap_id: "iot-shop-signage-display"
+title: "Local GPU Shop Display Signage Qap (QECP collect != activate)"
+version: "0.0.41"
+license: "CC-BY-NC-ND-4.0"
+author_did: "did:q42:person:timothy-holborn"
+qdp_context_domain: "webizen.org"
+entrypoint: "vibe/main.vibe"
+multi_scale_layers:
+  - L0Continuum
+  - L1RigidArticulatedPgaXpbd
+  - L2SoftBodyFluid
+  - L3MolecularChemical
+  - L4CellularBiological
+  - L5EcologicalGeomorphic
+  - L6QuantumPhysics
+required_capabilities:
+  - "capability.invoke"
+  - "IoTInstrument.pair_with_steward_host"
+  - "IoTSignage.present_verified_hmc"
+  - "WgslForge.generate"
+required_host_capabilities:
+  - "IoTInstrument.pair_with_steward_host"
+  - "IoTSignage.present_verified_hmc"
+  - "WgslForge.generate"

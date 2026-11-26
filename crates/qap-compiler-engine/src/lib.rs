@@ -257,6 +257,41 @@ pub fn invoke_host_capability(id: &str) -> VibeValue {
             );
             rec.insert("independent_legal_entity".to_string(), VibeValue::Bool(false));
         }
+        "SubsystemGuard.verify_ext4_sanctuary_isolation" => {
+            rec.insert("isolated_ext4_vhdx_ok".to_string(), VibeValue::Bool(true));
+            rec.insert("host_cloud_sync_blocked".to_string(), VibeValue::Bool(true));
+            rec.insert("mmap_lock_safe".to_string(), VibeValue::Bool(true));
+        }
+        "IoTInstrument.pair_with_steward_host" => {
+            rec.insert("paired_ok".to_string(), VibeValue::Bool(true));
+            rec.insert(
+                "instrument_standing".to_string(),
+                VibeValue::String("GovernedInstrumentOfNaturalPerson".to_string()),
+            );
+            rec.insert("foreign_cloud_disabled".to_string(), VibeValue::Bool(true));
+            rec.insert("custody_quin_parity_ok".to_string(), VibeValue::Bool(true));
+        }
+        "IoTActuator.command_bus" => {
+            rec.insert("actuation_executed".to_string(), VibeValue::Bool(true));
+            rec.insert(
+                "deontic_guard_receipt".to_string(),
+                VibeValue::String("SlgArena-42MiB".to_string()),
+            );
+            rec.insert("zero_heap_tick_us".to_string(), VibeValue::I64(12));
+        }
+        "IoTSensing.bridge_observation" => {
+            rec.insert("measurement_quin_minted".to_string(), VibeValue::Bool(true));
+            rec.insert("sidecar_custody_preserved".to_string(), VibeValue::Bool(true));
+            rec.insert("consent_scope_verified".to_string(), VibeValue::Bool(true));
+        }
+        "IoTSignage.present_verified_hmc" => {
+            rec.insert("playlist_activated".to_string(), VibeValue::Bool(true));
+            rec.insert(
+                "renderer_backend".to_string(),
+                VibeValue::String("vello-hybrid".to_string()),
+            );
+            rec.insert("cpu_fallback_ready".to_string(), VibeValue::Bool(true));
+        }
         _ => {
             rec.insert("status".to_string(), VibeValue::String("verified_ok".to_string()));
         }
@@ -664,8 +699,20 @@ mod tests {
             .join("examples")
             .join("reference-qap");
 
-        let mut workspaces: Vec<(PathBuf, &str, bool)> =
-            vec![(ref_qap_dir.clone(), "reference-qap", true)];
+        let examples_dir = ref_qap_dir.parent().unwrap();
+        let mut workspaces: Vec<(PathBuf, &str, bool)> = vec![
+            (ref_qap_dir.clone(), "reference-qap", true),
+            (
+                examples_dir.join("iot-robotics-headless-qap"),
+                "iot-robotics-headless",
+                true,
+            ),
+            (
+                examples_dir.join("iot-shop-signage-display-qap"),
+                "iot-shop-signage-display",
+                true,
+            ),
+        ];
 
         for (dir_str, expected_id, has_exec_vibe) in [
             ("C:/github/wellfair", "wellfair", true),
@@ -738,5 +785,119 @@ mod tests {
             f.subject_id == "capability:Biophysical.estimate_rppg_hrv"
                 && f.detail_and_remedy.contains("bpm_x10")
         }));
+    }
+
+    fn record_field<'a>(value: &'a VibeValue, key: &str) -> Option<&'a VibeValue> {
+        match value {
+            VibeValue::Record(map) => map.get(key),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn debian_native_profiles_and_iot_host_capabilities_evaluate_deterministically() {
+        use qap_format_core::{
+            evaluate_qap_against_host_environment, CompatibilityStatus, WebizenNativeProfileKind,
+        };
+
+        for kind in WebizenNativeProfileKind::ALL {
+            let env = HostEnvironmentProfile::for_debian_profile(kind);
+            assert!(
+                env.environment_label.contains(kind.slug()),
+                "debian profile label must name {}",
+                kind.slug()
+            );
+            assert_eq!(kind.max_glibc_version(), "2.36");
+        }
+
+        let guard = invoke_host_capability("SubsystemGuard.verify_ext4_sanctuary_isolation");
+        assert_eq!(
+            record_field(&guard, "isolated_ext4_vhdx_ok"),
+            Some(&VibeValue::Bool(true))
+        );
+        assert_eq!(
+            record_field(&guard, "host_cloud_sync_blocked"),
+            Some(&VibeValue::Bool(true))
+        );
+
+        let pair = invoke_host_capability("IoTInstrument.pair_with_steward_host");
+        assert_eq!(
+            record_field(&pair, "instrument_standing"),
+            Some(&VibeValue::String(
+                "GovernedInstrumentOfNaturalPerson".to_string()
+            ))
+        );
+        assert_eq!(
+            record_field(&pair, "foreign_cloud_disabled"),
+            Some(&VibeValue::Bool(true))
+        );
+
+        let bus = invoke_host_capability("IoTActuator.command_bus");
+        assert_eq!(
+            record_field(&bus, "actuation_executed"),
+            Some(&VibeValue::Bool(true))
+        );
+
+        let sense = invoke_host_capability("IoTSensing.bridge_observation");
+        assert_eq!(
+            record_field(&sense, "consent_scope_verified"),
+            Some(&VibeValue::Bool(true))
+        );
+
+        let signage = invoke_host_capability("IoTSignage.present_verified_hmc");
+        assert_eq!(
+            record_field(&signage, "cpu_fallback_ready"),
+            Some(&VibeValue::Bool(true))
+        );
+
+        let headless = HostEnvironmentProfile::for_debian_profile(
+            WebizenNativeProfileKind::DebianNativeIotHeadless,
+        );
+        let gpu_matrix = QapEnvironmentCompatibilityMatrix::default_for_qap(
+            "headless-gpu-reject",
+            "0.0.41",
+            &["WgslForge.generate".to_string()],
+        );
+        let report = evaluate_qap_against_host_environment(&gpu_matrix, &headless);
+        assert_eq!(
+            report.overall_status,
+            CompatibilityStatus::IncompatibleApiSurfaceChange
+        );
+        assert!(!report.can_compile_and_activate);
+
+        let examples = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("examples");
+        let robotics = compile_workspace_to_qap(&examples.join("iot-robotics-headless-qap"))
+            .expect("compile iot-robotics-headless-qap");
+        let signage = compile_workspace_to_qap(&examples.join("iot-shop-signage-display-qap"))
+            .expect("compile iot-shop-signage-display-qap");
+
+        for kind in WebizenNativeProfileKind::ALL {
+            let env = HostEnvironmentProfile::for_debian_profile(kind);
+            let robotics_report = robotics.check_host_environment_compatibility(&env);
+            assert!(
+                robotics_report.can_compile_and_activate,
+                "iot-robotics-headless-qap must activate on {}",
+                kind.slug()
+            );
+            let signage_report = signage.check_host_environment_compatibility(&env);
+            if kind == WebizenNativeProfileKind::DebianNativeIotHeadless {
+                assert_eq!(
+                    signage_report.overall_status,
+                    CompatibilityStatus::IncompatibleApiSurfaceChange
+                );
+                assert!(!signage_report.can_compile_and_activate);
+            } else if kind == WebizenNativeProfileKind::DebianNativeIotDisplay {
+                assert_eq!(
+                    signage_report.overall_status,
+                    CompatibilityStatus::ExactPinnedMatch
+                );
+                assert!(signage_report.can_compile_and_activate);
+            }
+        }
     }
 }

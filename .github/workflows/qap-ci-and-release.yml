@@ -37,6 +37,15 @@ jobs:
           cargo run --release -p qapc-cli -- check-env examples/reference-qap exact
           cargo run --release -p qapc-cli -- check-env examples/reference-qap minor-update
 
+      - name: Verify Six Debian Native Profiles (host desktop subsystem mobile iot-headless iot-display)
+        run: |
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile host
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile desktop
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile subsystem
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile mobile
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile iot-headless
+          cargo run --release -p qapc-cli -- check-env examples/reference-qap exact --profile iot-display
+
       - name: Generate .qap Application Package & .qar Evidentiary Archive
         run: |
           cargo run --release -p qapc-cli -- build-all -d dist

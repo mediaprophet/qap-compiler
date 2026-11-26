@@ -7,7 +7,7 @@
 use qap_compiler_engine::compile_workspace_to_qap;
 use qap_format_core::{
     HostEnvironmentProfile, PreservedEvidentiaryTimestamps, QapContainerReader,
-    QarContainerReader, QarContainerWriter, QAP_ENTRY_ALIGN,
+    QarContainerReader, QarContainerWriter, WebizenNativeProfileKind, QAP_ENTRY_ALIGN,
 };
 use std::env;
 use std::fs;
@@ -22,7 +22,8 @@ fn print_usage() {
     println!("  qapc build <workspace-dir> [-o <out.qap>]       Compile workspace (qap.q42.yaml + .vibe + .q42) to .qap");
     println!("  qapc inspect <file.qap>                         Zero-copy inspect .qap header, page alignment & TOC entries");
     println!("  qapc activate-eval <workspace-dir> [did]        Activate staged .qap (collect != activate) & evaluate live .vibe");
-    println!("  qapc check-env <workspace-dir> [mode]           Check version pins, minor-update tolerance & API surface contracts (mode: exact | minor-update | api-break)");
+    println!("  qapc check-env <workspace-dir> [mode] [--profile <host|desktop|subsystem|mobile|iot-headless|iot-display>]");
+    println!("                                                 Check version pins, minor-update tolerance & API surface contracts (mode: exact | minor-update | api-break)");
     println!("  qapc build-all [-d <dist-dir>]                  Compile poet.qap, wellfair.qap & cooperative-projects.qap + .qar archive");
 }
 
@@ -126,34 +127,112 @@ fn main() {
             );
         }
         "check-env" => {
-            let ws_arg = args.get(2).map(|s| s.as_str()).unwrap_or(".");
-            let mode = args.get(3).map(|s| s.as_str()).unwrap_or("minor-update");
-            let pkg = compile_workspace_to_qap(Path::new(ws_arg)).unwrap_or_else(|e| {
+            let mut ws_arg = ".".to_string();
+            let mut mode = "minor-update".to_string();
+            let mut profile_kind: Option<WebizenNativeProfileKind> = None;
+            let mut i = 2usize;
+            while i < args.len() {
+                let a = args[i].as_str();
+                if a == "--profile" {
+                    let raw = args.get(i + 1).map(|s| s.as_str()).unwrap_or("");
+                    profile_kind = WebizenNativeProfileKind::parse_flag(raw);
+                    if profile_kind.is_none() {
+                        eprintln!(
+                            "qapc check-env: unknown --profile '{raw}' (expected host|desktop|subsystem|mobile|iot-headless|iot-display)"
+                        );
+                        process::exit(1);
+                    }
+                    i += 2;
+                    continue;
+                }
+                if let Some(raw) = a.strip_prefix("--profile=") {
+                    profile_kind = WebizenNativeProfileKind::parse_flag(raw);
+                    if profile_kind.is_none() {
+                        eprintln!(
+                            "qapc check-env: unknown --profile '{raw}' (expected host|desktop|subsystem|mobile|iot-headless|iot-display)"
+                        );
+                        process::exit(1);
+                    }
+                    i += 1;
+                    continue;
+                }
+                if matches!(a, "exact" | "minor-update" | "api-break") {
+                    mode = a.to_string();
+                    i += 1;
+                    continue;
+                }
+                if !a.starts_with('-') && ws_arg == "." {
+                    ws_arg = a.to_string();
+                    i += 1;
+                    continue;
+                }
+                eprintln!("qapc check-env: unexpected argument '{a}'");
+                process::exit(1);
+            }
+
+            let pkg = compile_workspace_to_qap(Path::new(&ws_arg)).unwrap_or_else(|e| {
                 eprintln!("qapc check-env compile error: {e}");
                 process::exit(1);
             });
-            let host_env = match mode {
-                "exact" => HostEnvironmentProfile::baseline_pinned_2026_11(),
-                "api-break" => {
-                    let mut env = HostEnvironmentProfile::minor_updated_host_environment();
-                    env.environment_label = "Simulated Host with Breaking API Surface Change".to_string();
-                    if let Some(first_contract) = pkg
-                        .descriptor
-                        .compatibility_matrix
-                        .capability_surface_contracts
-                        .first()
+
+            let apply_api_break = |env: &mut HostEnvironmentProfile| {
+                env.environment_label =
+                    "Simulated Host with Breaking API Surface Change".to_string();
+                if let Some(first_contract) = pkg
+                    .descriptor
+                    .compatibility_matrix
+                    .capability_surface_contracts
+                    .first()
+                {
+                    if let Some(host_cap) = env
+                        .available_capabilities
+                        .iter_mut()
+                        .find(|c| c.capability_id == first_contract.capability_id)
                     {
-                        if let Some(host_cap) = env
-                            .available_capabilities
-                            .iter_mut()
-                            .find(|c| c.capability_id == first_contract.capability_id)
-                        {
-                            host_cap.provided_output_fields.clear();
-                        }
+                        host_cap.provided_output_fields.clear();
                     }
+                }
+            };
+
+            let apply_minor = |env: &mut HostEnvironmentProfile| {
+                for comp in &mut env.installed_components {
+                    match comp.component_id.as_str() {
+                        "qualiadb-core" | "aether-ui" => {
+                            comp.installed_version = "0.0.43.5".to_string()
+                        }
+                        "vibescript-engine" => comp.installed_version = "0.1.2".to_string(),
+                        "etalon-gpu" => comp.installed_version = "0.0.4".to_string(),
+                        "webizen-synth-morphisms" => {
+                            comp.installed_version = "0.0.42.10".to_string()
+                        }
+                        _ => {}
+                    }
+                }
+            };
+
+            let host_env = match (profile_kind, mode.as_str()) {
+                (Some(kind), "exact") => HostEnvironmentProfile::for_debian_profile(kind),
+                (Some(kind), "api-break") => {
+                    let mut env = HostEnvironmentProfile::for_debian_profile(kind);
+                    apply_api_break(&mut env);
                     env
                 }
-                _ => HostEnvironmentProfile::minor_updated_host_environment(),
+                (Some(kind), _) => {
+                    let mut env = HostEnvironmentProfile::for_debian_profile(kind);
+                    env.environment_label = format!(
+                        "User Host Environment with Minor/Patch Updates on {}",
+                        kind.slug()
+                    );
+                    apply_minor(&mut env);
+                    env
+                }
+                (None, "exact") => HostEnvironmentProfile::baseline_pinned_2026_11(),
+                (None, "api-break") => {
+                    let mut env = HostEnvironmentProfile::minor_updated_host_environment();
+                    apply_api_break(&mut env);
+                    env
+                }
+                (None, _) => HostEnvironmentProfile::minor_updated_host_environment(),
             };
 
             let report = pkg.check_host_environment_compatibility(&host_env);
@@ -188,6 +267,8 @@ fn main() {
 
             let candidate_targets = [
                 "examples/reference-qap",
+                "examples/iot-robotics-headless-qap",
+                "examples/iot-shop-signage-display-qap",
                 "C:/github/poet",
                 "C:/github/wellfair",
                 "C:/github/cooperative-projects",

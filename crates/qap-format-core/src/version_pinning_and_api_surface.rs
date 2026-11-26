@@ -314,13 +314,21 @@ pub fn known_capability_surface_contract(capability_id: &str) -> CapabilitySurfa
             vec!["project_finish_min", "critical_path_tasks"],
             "Expects PDM/CPM forward/backward pass schedule metrics.",
         ),
-        "CoopChatGraph.verify_delegated_agent" => CapabilitySurfaceContract::new(
+        "CoopChatGraph.verify_delegated_agent" | "ChatGraph.verify_delegated_agent" => CapabilitySurfaceContract::new(
             capability_id,
             "qualiadb-core",
             "0.0.41",
             vec!["session"],
             vec!["standing", "independent_legal_entity"],
             "Enforces DelegatedInstrumentOfNaturalPerson standing (independent_legal_entity = false).",
+        ),
+        "Codecs.matrix" => CapabilitySurfaceContract::new(
+            capability_id,
+            "qualiadb-core",
+            "0.0.41",
+            vec!["domain", "sample_rate", "ambisonic_order"],
+            vec!["status"],
+            "Expects spatial audio / FLAC + .p64 media codec matrix.",
         ),
         "GraphDatabase.lexicon_manifest" => CapabilitySurfaceContract::new(
             capability_id,
@@ -338,6 +346,46 @@ pub fn known_capability_surface_contract(capability_id: &str) -> CapabilitySurfa
             vec!["status"],
             "Expects Etalon Naga WGSL shader generator.",
         ),
+        "SubsystemGuard.verify_ext4_sanctuary_isolation" => CapabilitySurfaceContract::new(
+            capability_id,
+            "qualiadb-core",
+            "0.0.41",
+            vec!["mount_path", "fs_type"],
+            vec!["isolated_ext4_vhdx_ok", "host_cloud_sync_blocked", "mmap_lock_safe"],
+            "Enforces that Second-OS Subsystem (WSL2/Lima) Sanctuary Keep .q42/.q42j vaults reside on native Linux ext4 virtual disks and never on /mnt/c, 9p, drvfs, or virtiofs host mounts.",
+        ),
+        "IoTInstrument.pair_with_steward_host" => CapabilitySurfaceContract::new(
+            capability_id,
+            "qualiadb-core",
+            "0.0.41",
+            vec!["steward_did_qi", "parent_host_endpoint", "zcap_delegation_token"],
+            vec!["paired_ok", "instrument_standing", "foreign_cloud_disabled", "custody_quin_parity_ok"],
+            "Enforces local cryptographic pairing (ML-KEM-768 + Ed25519 + ZCAP-LD) between an IoT/Robotics/Signage instrument and a steward's local webizen-desktop, webizen-subsystem, or webizen-host. Instruments are never independent legal peers.",
+        ),
+        "IoTActuator.command_bus" => CapabilitySurfaceContract::new(
+            capability_id,
+            "qualiadb-core",
+            "0.0.41",
+            vec!["bus_kind", "channel_id", "command_payload"],
+            vec!["actuation_executed", "deontic_guard_receipt", "zero_heap_tick_us"],
+            "Governs local GPIO, PWM, I2C, SPI, UART, Modbus, and CAN bus actuation under 42 MiB SlgArena deontic rules after verifying active parent steward pairing.",
+        ),
+        "IoTSensing.bridge_observation" => CapabilitySurfaceContract::new(
+            capability_id,
+            "etalon-gpu",
+            "0.0.2",
+            vec!["sensor_modality", "observation_envelope_digest"],
+            vec!["measurement_quin_minted", "sidecar_custody_preserved", "consent_scope_verified"],
+            "Bridges Etalon ObservationEnvelope sensor captures (BLE, NFC, SDR, GPIO/I2C telemetry) into QualiaDB measurement records with full sidecar custody.",
+        ),
+        "IoTSignage.present_verified_hmc" => CapabilitySurfaceContract::new(
+            capability_id,
+            "aether-ui",
+            "0.0.41",
+            vec!["hmc_bundle_digest", "qecp_signature", "display_mode"],
+            vec!["playlist_activated", "renderer_backend", "cpu_fallback_ready"],
+            "Verifies QECP signature and collect != activate gate before presenting .hmc/.10d signage playlists on GPU-equipped IoT displays (with automatic vello-cpu-softbuffer fallback).",
+        ),
         other => CapabilitySurfaceContract::new(
             other,
             "qualiadb-core",
@@ -347,6 +395,166 @@ pub fn known_capability_surface_contract(capability_id: &str) -> CapabilitySurfa
             "Standard QualiaDB capability.invoke contract.",
         ),
     }
+}
+
+// ============================================================================
+// WEBIZEN DEBIAN NATIVE PROFILE KIND (HOST / DESKTOP / SUBSYSTEM / MOBILE / IOT)
+// ============================================================================
+
+/// Canonical Debian-native execution environments for Webizen / QualiaDB `.qap` packages.
+///
+/// Six hardware roles share a Debian 12 `bookworm` (`glibc 2.36`) baseline while exposing
+/// distinct capability surfaces so a GPU-only `.qap` cannot silently deploy onto a headless
+/// Raspberry Pi, and Sanctuary Keep vaults cannot land on WSL `/mnt/c` host mounts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum WebizenNativeProfileKind {
+    /// Debian VPS, Home Server, Cooperative Hub & Namespace Lighthouse (`amd64`, `arm64`)
+    DebianNativeHost,
+    /// Bare-Metal Debian Desktop Workstation & Poet Studio (`amd64`, `arm64`)
+    DebianNativeDesktop,
+    /// Second-OS Guest Subsystem Appliance: Windows WSL2 (`.wsl`), macOS Lima, Linux Incus (`amd64`, `arm64`)
+    DebianNativeSubsystem,
+    /// Debian Mobile (Mobian / PureOS / ARM64 Handhelds) (`arm64`)
+    DebianNativeMobile,
+    /// Headless IoT, Raspberry Pi, Robotics & Home Automation (`arm64`, `armhf`, `amd64`) — Zero GPU/GUI
+    DebianNativeIotHeadless,
+    /// GPU-Equipped IoT Display, Shop Signage & Interactive Kiosk (`arm64`, `amd64`) — Vulkan/GLES + CPU Fallback
+    DebianNativeIotDisplay,
+}
+
+impl WebizenNativeProfileKind {
+    pub const ALL: [Self; 6] = [
+        Self::DebianNativeHost,
+        Self::DebianNativeDesktop,
+        Self::DebianNativeSubsystem,
+        Self::DebianNativeMobile,
+        Self::DebianNativeIotHeadless,
+        Self::DebianNativeIotDisplay,
+    ];
+
+    pub const fn slug(self) -> &'static str {
+        match self {
+            Self::DebianNativeHost => "webizen-native-host-debian",
+            Self::DebianNativeDesktop => "webizen-native-desktop-debian",
+            Self::DebianNativeSubsystem => "webizen-native-subsystem-debian",
+            Self::DebianNativeMobile => "webizen-native-mobile-debian",
+            Self::DebianNativeIotHeadless => "webizen-native-iot-headless-debian",
+            Self::DebianNativeIotDisplay => "webizen-native-iot-display-debian",
+        }
+    }
+
+    pub const fn cargo_profile_name(self) -> &'static str {
+        match self {
+            Self::DebianNativeHost => "webizen-host",
+            Self::DebianNativeDesktop => "webizen-desktop",
+            Self::DebianNativeSubsystem => "webizen-subsystem",
+            Self::DebianNativeMobile => "webizen-mobile",
+            Self::DebianNativeIotHeadless => "webizen-iot-headless",
+            Self::DebianNativeIotDisplay => "webizen-iot-display",
+        }
+    }
+
+    pub const fn requires_local_steward_pairing(self) -> bool {
+        matches!(
+            self,
+            Self::DebianNativeIotHeadless | Self::DebianNativeIotDisplay
+        )
+    }
+
+    pub const fn requires_ext4_subsystem_mount_guard(self) -> bool {
+        matches!(self, Self::DebianNativeSubsystem)
+    }
+
+    /// Debian 12 `bookworm` glibc baseline. Native `.deb` binaries must not require `GLIBC_2.37+`.
+    pub const fn max_glibc_version(self) -> &'static str {
+        "2.36"
+    }
+
+    /// Parses `qapc check-env --profile` flags (`host`, `desktop`, `subsystem`/`wsl`, `mobile`,
+    /// `iot-headless`, `iot-display`) plus cargo-profile and slug aliases.
+    pub fn parse_flag(raw: &str) -> Option<Self> {
+        let normalized = raw.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "host" | "webizen-host" | "webizen-native-host-debian" => Some(Self::DebianNativeHost),
+            "desktop" | "webizen-desktop" | "webizen-native-desktop-debian" => {
+                Some(Self::DebianNativeDesktop)
+            }
+            "subsystem" | "wsl" | "webizen-subsystem" | "webizen-native-subsystem-debian" => {
+                Some(Self::DebianNativeSubsystem)
+            }
+            "mobile" | "webizen-mobile" | "webizen-native-mobile-debian" => {
+                Some(Self::DebianNativeMobile)
+            }
+            "iot-headless" | "webizen-iot-headless" | "webizen-native-iot-headless-debian" => {
+                Some(Self::DebianNativeIotHeadless)
+            }
+            "iot-display" | "webizen-iot-display" | "webizen-native-iot-display-debian" => {
+                Some(Self::DebianNativeIotDisplay)
+            }
+            _ => None,
+        }
+    }
+}
+
+fn available_surfaces_for_capability_ids(
+    ids: &[&str],
+) -> Vec<AvailableHostCapabilitySurface> {
+    ids.iter()
+        .map(|id| {
+            let c = known_capability_surface_contract(id);
+            AvailableHostCapabilitySurface {
+                capability_id: c.capability_id,
+                accepted_input_fields: c.expected_input_fields,
+                provided_output_fields: c.expected_output_fields,
+            }
+        })
+        .collect()
+}
+
+fn debian_profile_capability_ids(kind: WebizenNativeProfileKind) -> Vec<&'static str> {
+    let mut ids = vec![
+        "Biophysical.estimate_rppg_hrv",
+        "Biophysical.estimate_chrom_rppg",
+        "Pharmacokinetics.solve_rk4",
+        "SanctuaryStaging.stage_import",
+        "Sanctuary.stage_uncategorized_import",
+        "QdpDomainMail.resolve_delivery",
+        "QdpMail.resolve_domain_mailbox",
+        "CoopLedger.evaluate_transition_readiness",
+        "CoopPlan.schedule_cpm",
+        "CoopPlan.calculate_cpm",
+        "CoopChatGraph.verify_delegated_agent",
+        "ChatGraph.verify_delegated_agent",
+        "Codecs.matrix",
+        "MultiRailWallet.reconcile_provider_credit",
+        "GraphDatabase.lexicon_manifest",
+        "GraphDatabase.sparql",
+        "ClinicalRisk.framingham",
+        "IoTInstrument.pair_with_steward_host",
+        "IoTActuator.command_bus",
+        "IoTSensing.bridge_observation",
+    ];
+    match kind {
+        WebizenNativeProfileKind::DebianNativeIotHeadless => {}
+        WebizenNativeProfileKind::DebianNativeIotDisplay => {
+            ids.push("WgslForge.generate");
+            ids.push("IoTSignage.present_verified_hmc");
+        }
+        WebizenNativeProfileKind::DebianNativeSubsystem => {
+            ids.push("WgslForge.generate");
+            ids.push("SubsystemGuard.verify_ext4_sanctuary_isolation");
+            ids.push("IoTSignage.present_verified_hmc");
+        }
+        WebizenNativeProfileKind::DebianNativeDesktop => {
+            ids.push("WgslForge.generate");
+            ids.push("IoTSignage.present_verified_hmc");
+        }
+        WebizenNativeProfileKind::DebianNativeHost
+        | WebizenNativeProfileKind::DebianNativeMobile => {
+            ids.push("WgslForge.generate");
+        }
+    }
+    ids
 }
 
 // ============================================================================
@@ -423,11 +631,18 @@ impl HostEnvironmentProfile {
                 "CoopPlan.schedule_cpm",
                 "CoopPlan.calculate_cpm",
                 "CoopChatGraph.verify_delegated_agent",
+                "ChatGraph.verify_delegated_agent",
+                "Codecs.matrix",
                 "MultiRailWallet.reconcile_provider_credit",
                 "GraphDatabase.lexicon_manifest",
                 "GraphDatabase.sparql",
                 "WgslForge.generate",
                 "ClinicalRisk.framingham",
+                "SubsystemGuard.verify_ext4_sanctuary_isolation",
+                "IoTInstrument.pair_with_steward_host",
+                "IoTActuator.command_bus",
+                "IoTSensing.bridge_observation",
+                "IoTSignage.present_verified_hmc",
             ]
             .into_iter()
             .map(|id| {
@@ -461,6 +676,32 @@ impl HostEnvironmentProfile {
                 _ => {}
             }
         }
+        env
+    }
+
+    /// Debian-native host environment for one of the six canonical Webizen profiles.
+    ///
+    /// Capability surfaces are exact: `include_standard_catalog_capabilities` is `false` so a
+    /// missing GPU/signage capability on `DebianNativeIotHeadless` fails closed with
+    /// `IncompatibleApiSurfaceChange` rather than being silently filled from the catalog.
+    pub fn for_debian_profile(kind: WebizenNativeProfileKind) -> Self {
+        let mut env = Self::baseline_pinned_2026_11();
+        env.environment_label = format!(
+            "Webizen Debian Native {} (bookworm glibc {}, cargo profile {})",
+            kind.slug(),
+            kind.max_glibc_version(),
+            kind.cargo_profile_name()
+        );
+        env.available_capabilities =
+            available_surfaces_for_capability_ids(&debian_profile_capability_ids(kind));
+        env.include_standard_catalog_capabilities = false;
+        env.removed_capability_ids = match kind {
+            WebizenNativeProfileKind::DebianNativeIotHeadless => vec![
+                "WgslForge.generate".to_string(),
+                "IoTSignage.present_verified_hmc".to_string(),
+            ],
+            _ => Vec::new(),
+        };
         env
     }
 }
@@ -787,5 +1028,151 @@ pub fn evaluate_qap_against_host_environment(
         can_compile_and_activate: can_compile,
         findings,
         compatibility_receipt_quin: quin,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn webizen_native_profile_kind_flags_and_slugs_cover_all_six_debian_roles() {
+        assert_eq!(WebizenNativeProfileKind::ALL.len(), 6);
+        for kind in WebizenNativeProfileKind::ALL {
+            assert_eq!(kind.max_glibc_version(), "2.36");
+            assert!(kind.slug().starts_with("webizen-native-"));
+            assert!(kind.slug().ends_with("-debian"));
+            assert!(kind.cargo_profile_name().starts_with("webizen-"));
+            assert_eq!(
+                WebizenNativeProfileKind::parse_flag(kind.cargo_profile_name()),
+                Some(kind)
+            );
+            assert_eq!(WebizenNativeProfileKind::parse_flag(kind.slug()), Some(kind));
+        }
+        assert_eq!(
+            WebizenNativeProfileKind::parse_flag("wsl"),
+            Some(WebizenNativeProfileKind::DebianNativeSubsystem)
+        );
+        assert_eq!(
+            WebizenNativeProfileKind::parse_flag("iot-headless"),
+            Some(WebizenNativeProfileKind::DebianNativeIotHeadless)
+        );
+        assert!(WebizenNativeProfileKind::DebianNativeIotHeadless.requires_local_steward_pairing());
+        assert!(WebizenNativeProfileKind::DebianNativeIotDisplay.requires_local_steward_pairing());
+        assert!(
+            WebizenNativeProfileKind::DebianNativeSubsystem.requires_ext4_subsystem_mount_guard()
+        );
+        assert!(
+            !WebizenNativeProfileKind::DebianNativeHost.requires_ext4_subsystem_mount_guard()
+        );
+        assert!(WebizenNativeProfileKind::parse_flag("unknown-board").is_none());
+    }
+
+    #[test]
+    fn debian_profiles_admit_role_capabilities_and_reject_gpu_on_iot_headless() {
+        let subsystem = HostEnvironmentProfile::for_debian_profile(
+            WebizenNativeProfileKind::DebianNativeSubsystem,
+        );
+        assert!(subsystem.available_capabilities.iter().any(|c| {
+            c.capability_id == "SubsystemGuard.verify_ext4_sanctuary_isolation"
+        }));
+        assert!(!subsystem.include_standard_catalog_capabilities);
+
+        let headless = HostEnvironmentProfile::for_debian_profile(
+            WebizenNativeProfileKind::DebianNativeIotHeadless,
+        );
+        let headless_ids: Vec<&str> = headless
+            .available_capabilities
+            .iter()
+            .map(|c| c.capability_id.as_str())
+            .collect();
+        assert!(headless_ids.contains(&"IoTInstrument.pair_with_steward_host"));
+        assert!(headless_ids.contains(&"IoTActuator.command_bus"));
+        assert!(headless_ids.contains(&"IoTSensing.bridge_observation"));
+        assert!(!headless_ids.contains(&"WgslForge.generate"));
+        assert!(!headless_ids.contains(&"IoTSignage.present_verified_hmc"));
+        assert!(headless
+            .removed_capability_ids
+            .iter()
+            .any(|id| id == "WgslForge.generate"));
+
+        let display = HostEnvironmentProfile::for_debian_profile(
+            WebizenNativeProfileKind::DebianNativeIotDisplay,
+        );
+        assert!(display
+            .available_capabilities
+            .iter()
+            .any(|c| c.capability_id == "IoTSignage.present_verified_hmc"));
+        assert!(display
+            .available_capabilities
+            .iter()
+            .any(|c| c.capability_id == "WgslForge.generate"));
+
+        let gpu_qap = QapEnvironmentCompatibilityMatrix::default_for_qap(
+            "gpu-signage-fixture",
+            "0.0.41",
+            &[
+                "WgslForge.generate".to_string(),
+                "IoTSignage.present_verified_hmc".to_string(),
+            ],
+        );
+        let gpu_on_headless = evaluate_qap_against_host_environment(&gpu_qap, &headless);
+        assert_eq!(
+            gpu_on_headless.overall_status,
+            CompatibilityStatus::IncompatibleApiSurfaceChange
+        );
+        assert!(!gpu_on_headless.can_compile_and_activate);
+        assert!(gpu_on_headless.findings.iter().any(|f| {
+            f.subject_id == "capability:WgslForge.generate"
+                && f.status == CompatibilityStatus::IncompatibleApiSurfaceChange
+        }));
+
+        let iot_qap = QapEnvironmentCompatibilityMatrix::default_for_qap(
+            "iot-headless-fixture",
+            "0.0.41",
+            &[
+                "IoTInstrument.pair_with_steward_host".to_string(),
+                "IoTActuator.command_bus".to_string(),
+                "IoTSensing.bridge_observation".to_string(),
+            ],
+        );
+        let iot_on_headless = evaluate_qap_against_host_environment(&iot_qap, &headless);
+        assert!(iot_on_headless.can_compile_and_activate);
+        assert!(iot_on_headless.findings.iter().any(|f| {
+            f.subject_id == "capability:IoTInstrument.pair_with_steward_host"
+                && f.status == CompatibilityStatus::ExactPinnedMatch
+        }));
+
+        let guard_qap = QapEnvironmentCompatibilityMatrix::default_for_qap(
+            "subsystem-guard-fixture",
+            "0.0.41",
+            &["SubsystemGuard.verify_ext4_sanctuary_isolation".to_string()],
+        );
+        let guard_on_subsystem = evaluate_qap_against_host_environment(&guard_qap, &subsystem);
+        assert!(guard_on_subsystem.can_compile_and_activate);
+        assert!(guard_on_subsystem.findings.iter().any(|f| {
+            f.subject_id == "capability:SubsystemGuard.verify_ext4_sanctuary_isolation"
+                && f.status == CompatibilityStatus::ExactPinnedMatch
+        }));
+    }
+
+    #[test]
+    fn known_capability_surface_contracts_cover_subsystem_guard_and_iot_instruments() {
+        let guard = known_capability_surface_contract("SubsystemGuard.verify_ext4_sanctuary_isolation");
+        assert_eq!(guard.owning_component_id, "qualiadb-core");
+        assert!(guard.expected_input_fields.contains(&"mount_path".to_string()));
+        assert!(guard
+            .breaking_change_guidance
+            .contains("Sanctuary Keep"));
+
+        let pair = known_capability_surface_contract("IoTInstrument.pair_with_steward_host");
+        assert!(pair
+            .expected_output_fields
+            .contains(&"instrument_standing".to_string()));
+        assert!(pair.breaking_change_guidance.contains("never independent legal peers"));
+
+        let signage = known_capability_surface_contract("IoTSignage.present_verified_hmc");
+        assert_eq!(signage.owning_component_id, "aether-ui");
+        assert!(signage.breaking_change_guidance.contains("collect != activate"));
     }
 }

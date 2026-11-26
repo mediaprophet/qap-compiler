@@ -1,0 +1,27 @@
+requires [
+  capability("capability.invoke"),
+  capability("IoTInstrument.pair_with_steward_host"),
+  capability("IoTActuator.command_bus"),
+  capability("IoTSensing.bridge_observation")
+];
+
+effect fn on_qap_activate() {
+  let pairing = capability.invoke("IoTInstrument.pair_with_steward_host", {
+    instrument_did: "did:q42:instrument:rpi5-rover-robotics-arm",
+    steward_did: "did:qi:steward:desktop-principal"
+  });
+  let bus = capability.invoke("IoTActuator.command_bus", {
+    bus_kind: "gpio-pwm",
+    command: "set-wheel-duty"
+  });
+  let sense = capability.invoke("IoTSensing.bridge_observation", {
+    sensor: "imu-heading"
+  });
+  return {
+    qap_id: "iot-robotics-headless",
+    mode: "local_zero_cloud_instrument",
+    pairing: pairing,
+    bus: bus,
+    sense: sense
+  };
+}

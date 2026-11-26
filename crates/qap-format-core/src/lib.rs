@@ -296,12 +296,20 @@ impl QapYamlLdQ42Descriptor {
             author_did,
             qdp_context_domain,
             sanctuary_staging_uri: QAP_COLLECTED_STAGING_URI.to_string(),
-            targets: vec![
-                "aether-native-desktop".to_string(),
-                "aether-native-mobile".to_string(),
-                "webizen-host-qap".to_string(),
-                "wasm-portal".to_string(),
-            ],
+            targets: {
+                let mut t = vec![
+                    "aether-native-desktop".to_string(),
+                    "aether-native-mobile".to_string(),
+                    "webizen-host-qap".to_string(),
+                    "wasm-portal".to_string(),
+                ];
+                t.extend(
+                    WebizenNativeProfileKind::ALL
+                        .iter()
+                        .map(|kind| kind.slug().to_string()),
+                );
+                t
+            },
             multi_scale_layers: MultiScaleLayer::ALL.to_vec(),
             entrypoint_vibe,
             importer_vibe_modules: Vec::new(),
@@ -1003,6 +1011,13 @@ multi_scale_layers:
   - L6QuantumPhysics
 "#;
         let desc = QapYamlLdQ42Descriptor::parse_and_validate_yaml_text(yaml).unwrap();
+        for kind in WebizenNativeProfileKind::ALL {
+            assert!(
+                desc.targets.iter().any(|t| t == kind.slug()),
+                "default yaml-ld-q42 targets must include {}",
+                kind.slug()
+            );
+        }
         let mut writer = QapContainerWriter::new(
             QAP_FLAG_SIGNED_QECP
                 | QAP_FLAG_CBOR_LD_MANIFEST
